@@ -28,6 +28,26 @@ public final class Ui {
         ctx.fill(x, y, x + w, y + h, color);
     }
 
+    /** Прямоугольник со скруглёнными углами (ступеньками). */
+    public static void roundRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        if (r < 1 || w < 4 || h < 4) {
+            rect(ctx, x, y, w, h, color);
+            return;
+        }
+        int rr = Math.min(r, Math.min(w / 2, h / 2));
+        rect(ctx, x + rr, y, w - rr * 2, h, color);
+        rect(ctx, x, y + rr, rr, h - rr * 2, color);
+        rect(ctx, x + w - rr, y + rr, rr, h - rr * 2, color);
+        for (int i = 0; i < rr; i++) {
+            int len = (int) Math.ceil(Math.sqrt((double) rr * rr - (double) (rr - i - 1) * (rr - i - 1)));
+            if (len < 1) len = 1;
+            rect(ctx, x + rr - len, y + i, len, 1, color);
+            rect(ctx, x + w - rr, y + i, len, 1, color);
+            rect(ctx, x + rr - len, y + h - i - 1, len, 1, color);
+            rect(ctx, x + w - rr, y + h - i - 1, len, 1, color);
+        }
+    }
+
     public static void text(DrawContext ctx, String s, int x, int y, int color) {
         ctx.drawText(mc.textRenderer, s, x, y, color, true);
     }

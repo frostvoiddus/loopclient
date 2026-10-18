@@ -5,29 +5,40 @@ import dev.loopclient.module.Modules;
 import dev.loopclient.util.Config;
 import dev.loopclient.util.Sfx;
 import dev.loopclient.util.Ui;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * ClickGUI: вкладки категорий, список модулей, настройки.
- * RightShift — открыть, Esc — закрыть. Анимация появления + звуки.
+ * ClickGUI в стиле PulseVisuals: тёмная панель, фиолетовый акцент,
+ * карточки модулей с тумблерами, поиск и категории.
  */
 public class ClickGui extends Screen {
-    private static final int W = 560;
-    private static final int H = 340;
-    private static final int ROW = 26;
-    private static final int LIST_W = 300;
+    private static final int W = 640;
+    private static final int H = 380;
+    private static final int CARD_W = 286;
+    private static final int CARD_H = 44;
+    private static final int GAP = 12;
 
-    private Module.Category category = Module.Category.HUD;
-    private Module selected;
+    private static final int BG = 0xF00A0A0F;
+    private static final int BG_HEAD = 0xFF0D0D14;
+    private static final int CARD = 0xFF101018;
+    private static final int CARD_HOVER = 0xFF16161F;
+    private static final int BORDER = 0xFF1D1D28;
+    private static final int ACCENT = 0xFF8B5CF6;
+    private static final int ACCENT_SOFT = 0xFF6D4AFF;
+    private static final int TEXT = 0xFFFFFFFF;
+    private static final int MUTED = 0xFF7C7C8C;
+    private static final int DIM = 0xFF4A4A58;
+
+    private Module.Category category = Module.Category.VISUAL;
+    private String query = "";
     private int scroll;
+    private Module selected;
     private final long openedAt = System.currentTimeMillis();
-    private final Map<Module, Float> anim = new HashMap<>();
 
     public ClickGui() {
         super(Text.literal("loopclient"));
@@ -41,150 +52,152 @@ public class ClickGui extends Screen {
         return height / 2 - H / 2;
     }
 
-    private List<Module> list() {
-        return Modules.of(category);
-    }
-
-    private int listTop() {
-        return py() + 62;
-    }
-
-    private int listBottom() {
-        return py() + H - 26;
-    }
-
-    private int maxScroll() {
-        int visible = (listBottom() - listTop()) / ROW;
-        return Math.max(0, list().size() - visible);
-    }
-
     private float fade() {
-        float t = (System.currentTimeMillis() - openedAt) / 170.0f;
+        float t = (System.currentTimeMillis() - openedAt) / 180.0f;
         return Math.max(0f, Math.min(1f, t));
     }
 
-    private static int alpha(int color, float a) {
+    private static int fadeColor(int color, float a) {
         int al = (int) (((color >>> 24) & 0xFF) * a);
         return (al << 24) | (color & 0x00FFFFFF);
     }
 
-    private float animOf(Module m) {
-        float target = m.isEnabled() ? 1f : 0f;
-        float current = anim.getOrDefault(m, target);
-        float next = current + (target - current) * 0.35f;
-        if (Math.abs(next - target) < 0.01f) next = target;
-        anim.put(m, next);
-        return next;
+    private List<Module> visible() {
+        List<Module> out = new ArrayList<>();
+        for (Module m : Modules.of(category)) {
+            if (query.isEmpty() || m.name.toLowerCase().contains(query.toLowerCase())) out.add(m);
+        }
+        return out;
+    }
+
+    private int columns() {
+        return 2;
+    }
+
+    private int gridTop() {
+        return py() + 104;
+    }
+
+    private int gridBottom() {
+        return py() + H - 30;
+    }
+
+    private int maxScroll() {
+        int rows = (visible().size() + columns() - 1) / columns();
+        int visibleRows = (gridBottom() - gridTop()) / (CARD_H + GAP);
+        return Math.max(0, rows - Math.max(1, visibleRows));
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         float a = fade();
-        ctx.fill(0, 0, width, height, alpha(0x99000000, a));
+        ctx.fill(0, 0, width, height, fadeColor(0x99000000, a));
 
         int x = px();
         int y = py();
-        int w = W;
-        int h = H;
 
-        Ui.rect(ctx, x + 3, y + 4, w, h, alpha(0x66000000, a));
-        Ui.rect(ctx, x, y, w, h, alpha(0xF0090910, a));
-        Ui.rect(ctx, x, y, w, 1, alpha(0xFF2C2C36, a));
-        Ui.rect(ctx, x, y + h - 1, w, 1, alpha(0xFF1A1A22, a));
+        // панель
+        Ui.roundRect(ctx, x + 4, y + 6, W, H, 12, fadeColor(0x66000000, a));
+        Ui.roundRect(ctx, x, y, W, H, 12, fadeColor(BG, a));
+        Ui.roundRect(ctx, x, y, W, 46, 12, fadeColor(BG_HEAD, a));
+        Ui.rect(ctx, x, y + 40, W, 1, fadeColor(BORDER, a));
 
-        Ui.rect(ctx, x, y, w, 46, alpha(0xFF0E0E14, a));
-        Ui.rect(ctx, x, y + 45, w, 1, alpha(0xFF24242E, a));
+        // лого + название
+        Ui.rect(ctx, x + 18, y + 17, 12, 12, fadeColor(ACCENT, a));
+        drawSerif(ctx, "loopclient", x + 38, y + 14, fadeColor(TEXT, a));
+        Ui.text(ctx, "1.0", x + 38 + Ui.serifWidth("loopclient") + 8, y + 18, fadeColor(DIM, a));
 
-        drawSerif(ctx, "loopclient", x + 16, y + 12, alpha(0xFFFFFFFF, a));
-        Ui.text(ctx, "what makes you better", x + 16, y + 29, alpha(0xFF6A6A78, a));
-        Ui.text(ctx, "1.0", x + w - Ui.width("1.0") - 16, y + 14, alpha(0xFF4A4A56, a));
-
-        int tabX = x + 150;
-        for (Module.Category c : Module.Category.values()) {
-            int tw = Ui.width(c.label) + 20;
+        // вкладки
+        int tx = x + W - 18;
+        Module.Category[] cats = Module.Category.values();
+        for (int i = cats.length - 1; i >= 0; i--) {
+            Module.Category c = cats[i];
+            int tw = Ui.width(c.label) + 22;
+            tx -= tw;
             boolean active = c == category;
-            boolean hover = mouseX >= tabX && mouseX <= tabX + tw && mouseY >= y + 12 && mouseY <= y + 34;
-            if (hover && !active) Ui.rect(ctx, tabX, y + 12, tw, 22, alpha(0xFF16161D, a));
-            Ui.text(ctx, c.label, tabX + 10, y + 18, alpha(active ? 0xFFFFFFFF : hover ? 0xFFB9B9C4 : 0xFF6A6A78, a));
-            if (active) Ui.rect(ctx, tabX + 10, y + 33, tw - 20, 2, alpha(0xFFFFFFFF, a));
-            tabX += tw + 4;
+            boolean hover = mouseX >= tx && mouseX <= tx + tw && mouseY >= y + 10 && mouseY <= y + 36;
+            if (active) {
+                Ui.roundRect(ctx, tx, y + 10, tw, 26, 8, fadeColor(0xFF1A1A26, a));
+                Ui.roundRect(ctx, tx, y + 34, tw, 2, 1, fadeColor(ACCENT, a));
+            } else if (hover) {
+                Ui.roundRect(ctx, tx, y + 10, tw, 26, 8, fadeColor(0xFF15151E, a));
+            }
+            Ui.text(ctx, c.label, tx + 11, y + 18, fadeColor(active ? TEXT : MUTED, a));
+            tx -= 6;
         }
 
-        Ui.rect(ctx, x + LIST_W + 6, listTop() - 8, 1, listBottom() - listTop() + 8, alpha(0xFF1E1E26, a));
+        // поиск
+        int sx = x + 18;
+        int sy = y + 58;
+        int sw = W - 36;
+        Ui.roundRect(ctx, sx, sy, sw, 30, 8, fadeColor(0xFF12121A, a));
+        Ui.rect(ctx, sx + 1, sy + 1, sw - 2, 1, fadeColor(0xFF171722, a));
+        Ui.text(ctx, query.isEmpty() ? "поиск модуля…" : query, sx + 12, sy + 11, fadeColor(query.isEmpty() ? DIM : TEXT, a));
+        String count = visible().size() + "";
+        Ui.text(ctx, count, sx + sw - Ui.width(count) - 12, sy + 11, fadeColor(DIM, a));
 
-        List<Module> modules = list();
-        int top = listTop();
-        int bottom = listBottom();
-        for (int i = 0; i < modules.size(); i++) {
-            Module m = modules.get(i);
-            int ry = top + (i - scroll) * ROW;
-            if (ry < top || ry + ROW - 4 > bottom) continue;
+        // карточки
+        List<Module> list = visible();
+        int cols = columns();
+        int top = gridTop();
+        int bottom = gridBottom();
+        int startIndex = scroll * cols;
 
-            float on = animOf(m);
-            boolean hover = mouseX >= x + 8 && mouseX <= x + LIST_W + 2 && mouseY >= ry && mouseY <= ry + ROW - 4;
+        for (int i = 0; i < list.size(); i++) {
+            int row = i / cols;
+            int col = i % cols;
+            if (row < scroll) continue;
+            int cy = top + (row - scroll) * (CARD_H + GAP);
+            if (cy + CARD_H > bottom) break;
+
+            Module m = list.get(i);
+            int cx = x + 18 + col * (CARD_W + GAP);
+            boolean hover = mouseX >= cx && mouseX <= cx + CARD_W && mouseY >= cy && mouseY <= cy + CARD_H;
+            boolean on = m.isEnabled();
+
+            Ui.roundRect(ctx, cx, cy, CARD_W, CARD_H, 9,
+                fadeColor(hover ? CARD_HOVER : CARD, a));
+            Ui.rect(ctx, cx + 1, cy + 1, CARD_W - 2, 1, fadeColor(on ? 0xFF23233A : BORDER, a));
 
             if (m == selected) {
-                Ui.rect(ctx, x + 8, ry, LIST_W - 6, ROW - 4, alpha(0xFF1C1C24, a));
-            } else if (hover) {
-                Ui.rect(ctx, x + 8, ry, LIST_W - 6, ROW - 4, alpha(0xFF141419, a));
+                Ui.roundRect(ctx, cx, cy, 3, CARD_H, 2, fadeColor(ACCENT, a));
             }
-            if (on > 0.02f) Ui.rect(ctx, x + 8, ry, 2, ROW - 4, alpha(0xFFFFFFFF, a * on));
 
-            int textColor = m.isEnabled() ? 0xFFFFFFFF : 0xFF7C7C88;
-            Ui.text(ctx, m.name, x + 18, ry + 7, alpha(textColor, a));
+            Ui.text(ctx, m.name, cx + 14, cy + 11, fadeColor(on ? TEXT : 0xFF9A9AAA, a));
+            if (!m.settings.isEmpty()) {
+                Ui.text(ctx, "настройки", cx + 14, cy + 26, fadeColor(DIM, a));
+            }
 
-            int tw = 26;
-            int th = 12;
-            int tx = x + LIST_W - 14 - tw;
-            int ty = ry + 6;
-            Ui.rect(ctx, tx, ty, tw, th, alpha(0xFF23232B, a));
-            int knobX = tx + 1 + (int) ((tw - th) * on);
-            Ui.rect(ctx, knobX, ty + 1, th - 2, th - 2, alpha(m.isEnabled() ? 0xFFFFFFFF : 0xFF6A6A78, a));
+            // тумблер
+            int tw = 30;
+            int th = 16;
+            int tx2 = cx + CARD_W - tw - 14;
+            int ty2 = cy + 14;
+            Ui.roundRect(ctx, tx2, ty2, tw, th, th / 2, fadeColor(on ? ACCENT_SOFT : 0xFF22222C, a));
+            int kx = on ? tx2 + tw - th + 2 : tx2 + 2;
+            Ui.roundRect(ctx, kx, ty2 + 2, th - 4, th - 4, (th - 4) / 2, fadeColor(TEXT, a));
         }
 
+        if (list.isEmpty()) {
+            Ui.text(ctx, "ничего не найдено", x + 18, top + 8, fadeColor(DIM, a));
+        }
+
+        // полоса прокрутки
         if (maxScroll() > 0) {
-            int trackX = x + LIST_W - 3;
+            int trackX = x + W - 7;
             int trackH = bottom - top;
-            int barH = Math.max(18, trackH * trackH / (list().size() * ROW));
+            Ui.roundRect(ctx, trackX, top, 3, trackH, 2, fadeColor(0xFF15151E, a));
+            int barH = Math.max(24, trackH * trackH / ((list.size() / cols + 1) * (CARD_H + GAP)));
             int barY = top + (scroll * (trackH - barH)) / Math.max(1, maxScroll());
-            Ui.rect(ctx, trackX, top, 2, trackH, alpha(0xFF1A1A22, a));
-            Ui.rect(ctx, trackX, barY, 2, barH, alpha(0xFF4A4A58, a));
+            Ui.roundRect(ctx, trackX, barY, 3, barH, 2, fadeColor(ACCENT, a));
         }
 
-        int sx = x + LIST_W + 18;
-        int sw = w - (LIST_W + 18) - 16;
-        if (selected == null) {
-            Ui.text(ctx, "выбери модуль слева", sx, top + 6, alpha(0xFF55555F, a));
-        } else {
-            Ui.text(ctx, selected.name, sx, top, alpha(0xFFFFFFFF, a));
-            Ui.rect(ctx, sx, top + 15, sw, 1, alpha(0xFF1E1E26, a));
-            int sy = top + 24;
-            for (Module.Setting s : selected.settings) {
-                int rowH = s.kind == Module.Kind.BOOL ? 20 : 32;
-                Ui.text(ctx, s.name, sx, sy, alpha(0xFF8A8A96, a));
-                Ui.text(ctx, s.display(), sx + sw - Ui.width(s.display()), sy, alpha(0xFFFFFFFF, a));
-
-                if (s.kind == Module.Kind.NUM) {
-                    int barY = sy + 18;
-                    Ui.rect(ctx, sx, barY, sw, 3, alpha(0xFF23232B, a));
-                    Ui.rect(ctx, sx, barY, (int) (sw * s.ratio()), 3, alpha(0xFFFFFFFF, a));
-                } else if (s.kind == Module.Kind.BOOL) {
-                    int tw = 26;
-                    int tx = sx + sw - tw;
-                    int ty = sy - 2;
-                    Ui.rect(ctx, tx, ty, tw, 12, alpha(0xFF23232B, a));
-                    Ui.rect(ctx, s.bool ? tx + tw - 12 : tx + 1, ty + 1, 10, 10, alpha(s.bool ? 0xFFFFFFFF : 0xFF6A6A78, a));
-                }
-                sy += rowH + 8;
-            }
-            if (selected.settings.isEmpty()) {
-                Ui.text(ctx, "у модуля нет настроек", sx, top + 28, alpha(0xFF55555F, a));
-            }
-        }
-
-        Ui.rect(ctx, x, y + h - 24, w, 1, alpha(0xFF1A1A22, a));
-        String hint = "RightShift / Esc — закрыть · клик — вкл/выкл · колесо — прокрутка";
-        Ui.text(ctx, hint, x + (w - Ui.width(hint)) / 2, y + h - 15, alpha(0xFF4A4A56, a));
+        // настройки выбранного модуля — тонкой строкой в подвале
+        Ui.rect(ctx, x, y + H - 26, W, 1, fadeColor(BORDER, a));
+        String hint = selected == null
+            ? "клик по модулю — вкл/выкл · ПКМ — настройки · RightShift / Esc — закрыть"
+            : selected.name + " · " + (selected.settings.isEmpty() ? "нет настроек" : selected.settings.size() + " настроек");
+        Ui.text(ctx, hint, x + 18, y + H - 17, fadeColor(DIM, a));
     }
 
     private void drawSerif(DrawContext ctx, String text, int x, int y, int color) {
@@ -200,65 +213,48 @@ public class ClickGui extends Screen {
         int x = px();
         int y = py();
 
-        int tabX = x + 150;
-        for (Module.Category c : Module.Category.values()) {
-            int tw = Ui.width(c.label) + 20;
-            if (mx >= tabX && mx <= tabX + tw && my >= y + 12 && my <= y + 34) {
+        // вкладки
+        int tx = x + W - 18;
+        Module.Category[] cats = Module.Category.values();
+        for (int i = cats.length - 1; i >= 0; i--) {
+            Module.Category c = cats[i];
+            int tw = Ui.width(c.label) + 22;
+            tx -= tw;
+            if (mx >= tx && mx <= tx + tw && my >= y + 10 && my <= y + 36) {
                 category = c;
-                selected = null;
                 scroll = 0;
+                selected = null;
                 Sfx.click();
                 return true;
             }
-            tabX += tw + 4;
+            tx -= 6;
         }
 
-        List<Module> modules = list();
-        int top = listTop();
-        int bottom = listBottom();
-        for (int i = 0; i < modules.size(); i++) {
-            Module m = modules.get(i);
-            int ry = top + (i - scroll) * ROW;
-            if (ry < top || ry + ROW - 4 > bottom) continue;
-            if (mx >= x + 8 && mx <= x + LIST_W + 2 && my >= ry && my <= ry + ROW - 4) {
-                selected = m;
-                if (button == 0) {
-                    m.toggle();
-                    Sfx.toggle(m.isEnabled());
-                    Config.save();
+        // карточки
+        List<Module> list = visible();
+        int cols = columns();
+        int top = gridTop();
+        int bottom = gridBottom();
+        for (int i = 0; i < list.size(); i++) {
+            int row = i / cols;
+            int col = i % cols;
+            if (row < scroll) continue;
+            int cy = top + (row - scroll) * (CARD_H + GAP);
+            if (cy + CARD_H > bottom) break;
+            int cx = x + 18 + col * (CARD_W + GAP);
+            if (mx >= cx && mx <= cx + CARD_W && my >= cy && my <= cy + CARD_H) {
+                Module m = list.get(i);
+                if (button == 1) {
+                    selected = m;
+                    Sfx.click();
+                    return true;
                 }
+                m.toggle();
+                Sfx.toggle(m.isEnabled());
+                Config.save();
                 return true;
             }
         }
-
-        if (selected != null) {
-            int sx = x + LIST_W + 18;
-            int sw = W - (LIST_W + 18) - 16;
-            int sy = top + 24;
-            for (Module.Setting s : selected.settings) {
-                int rowH = s.kind == Module.Kind.BOOL ? 20 : 32;
-                if (my >= sy - 2 && my <= sy + rowH && mx >= sx && mx <= sx + sw) {
-                    if (s.kind == Module.Kind.BOOL) {
-                        s.bool = !s.bool;
-                    } else if (s.kind == Module.Kind.MODE) {
-                        if (s.modes.length > 0) {
-                            int idx = 0;
-                            for (int k = 0; k < s.modes.length; k++) {
-                                if (s.modes[k].equals(s.mode)) idx = k;
-                            }
-                            s.mode = s.modes[(idx + 1) % s.modes.length];
-                        }
-                    } else {
-                        s.setFromRatio((mx - sx) / (double) sw);
-                    }
-                    Sfx.click();
-                    Config.save();
-                    return true;
-                }
-                sy += rowH + 8;
-            }
-        }
-
         return super.mouseClicked(mx, my, button);
     }
 
@@ -269,10 +265,30 @@ public class ClickGui extends Screen {
     }
 
     @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (query.length() < 24 && chr >= 32) {
+            query += chr;
+            scroll = 0;
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_RIGHT_SHIFT) {
+            if (!query.isEmpty()) {
+                query = "";
+                return true;
+            }
             if (client != null) client.setScreen(null);
             return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+            if (!query.isEmpty()) {
+                query = query.substring(0, query.length() - 1);
+                return true;
+            }
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
