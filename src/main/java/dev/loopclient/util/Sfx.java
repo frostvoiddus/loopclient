@@ -27,7 +27,7 @@ public final class Sfx {
         play(SoundEvents.BLOCK_NOTE_BLOCK_BASS, 0.5f);
     }
 
-    private static void play(net.minecraft.registry.entry.RegistryEntry<SoundEvent> sound, float volume) {
+    private static void play(SoundEvent sound, float volume) {
         try {
             if (mc.getSoundManager() == null || sound == null) return;
             mc.getSoundManager().play(PositionedSoundInstance.master(sound, volume));
