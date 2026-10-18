@@ -40,6 +40,8 @@ public final class Config {
             for (Module m : Modules.ALL) {
                 JsonObject one = new JsonObject();
                 one.addProperty("enabled", m.isEnabled());
+                one.addProperty("ox", m.offsetX);
+                one.addProperty("oy", m.offsetY);
                 JsonObject settings = new JsonObject();
                 for (Module.Setting s : m.settings) {
                     if (s.kind == Module.Kind.BOOL) settings.addProperty(s.name, s.bool);
@@ -90,6 +92,8 @@ public final class Config {
                         }
                     }
                 }
+                if (one.has("ox")) m.offsetX = one.get("ox").getAsInt();
+                if (one.has("oy")) m.offsetY = one.get("oy").getAsInt();
                 if (one.has("enabled") && one.get("enabled").getAsBoolean()) {
                     m.setEnabled(true);
                 }

@@ -26,6 +26,7 @@ public class LoopClient implements ClientModInitializer {
     public static LoopClient INSTANCE;
     public static MinecraftClient mc;
     private static KeyBinding menuKey;
+    private static KeyBinding hudKey;
     private static boolean keyGatePending;
     private static int gateDelay;
 
@@ -38,6 +39,13 @@ public class LoopClient implements ClientModInitializer {
             "key.loopclient.menu",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_RIGHT_SHIFT,
+            "category.loopclient"
+        ));
+
+        hudKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.loopclient.hud",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_F7,
             "category.loopclient"
         ));
 
@@ -58,6 +66,10 @@ public class LoopClient implements ClientModInitializer {
                 if (KeyCheck.verify(Config.getKey()).ok == false) {
                     client.setScreen(new KeyScreen(false));
                 }
+            }
+            if (hudKey != null && hudKey.wasPressed() && client.currentScreen == null) {
+                client.setScreen(new dev.loopclient.gui.HudEditor());
+                dev.loopclient.util.Sfx.open();
             }
             Modules.tick();
         });

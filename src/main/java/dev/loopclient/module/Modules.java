@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.math.MatrixStack;
 
 /** Реестр модулей и рассылка хуков. */
 public final class Modules {
@@ -91,7 +92,11 @@ public final class Modules {
         for (Module m : ALL) {
             if (!m.isEnabled()) continue;
             try {
+                MatrixStack matrices = ctx.getMatrices();
+                matrices.push();
+                matrices.translate(m.offsetX, m.offsetY, 0);
                 m.onHud(ctx);
+                matrices.pop();
             } catch (Throwable ignored) {
                 // один сломанный модуль не должен ломать весь HUD
             }

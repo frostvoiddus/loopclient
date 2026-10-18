@@ -84,6 +84,9 @@ public abstract class Module {
     public final Category category;
     private boolean enabled;
     public final List<Setting> settings = new ArrayList<>();
+    /** Сдвиг HUD-элемента на экране. */
+    public int offsetX;
+    public int offsetY;
 
     protected Module(String name, Category category) {
         this.name = name;
