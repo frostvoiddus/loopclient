@@ -53,11 +53,11 @@ public final class Ui {
     }
 
     public static void serif(DrawContext ctx, String s, int x, int y, int color) {
-        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(SERIF), x, y, color, true);
+        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(Style.EMPTY.withItalic(true)), x, y, color, true);
     }
 
     public static int serifWidth(String s) {
-        return mc.textRenderer.getWidth(Text.literal(s).setStyle(SERIF));
+        return mc.textRenderer.getWidth(Text.literal(s).setStyle(Style.EMPTY.withItalic(true)));
     }
 
     public static int width(String s) {

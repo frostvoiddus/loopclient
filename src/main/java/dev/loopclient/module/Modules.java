@@ -1,6 +1,7 @@
 package dev.loopclient.module;
 
 import dev.loopclient.modules.HudModules;
+import dev.loopclient.modules.MiscModules;
 import dev.loopclient.modules.MoreModules;
 import dev.loopclient.modules.PlayerModules;
 import dev.loopclient.modules.RenderModules;
@@ -44,6 +45,11 @@ public final class Modules {
         add(new PlayerModules.Fullbright());
         add(new PlayerModules.Zoom());
         add(new MoreModules.CustomFov());
+
+        // разное
+        add(new MiscModules.Panic());
+        add(new MiscModules.Session());
+        add(new MiscModules.AutoSave());
     }
 
     public static void add(Module module) {
