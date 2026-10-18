@@ -54,20 +54,26 @@ public final class Ui {
 
     /** Обычный текст — шрифт PT Sans. */
     public static void text(DrawContext ctx, String s, int x, int y, int color) {
-        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(SERIF), x, y, color, false);
+        try {
+            if (LoopFont.draw(ctx, s, x, y, color, true)) return;
+        } catch (Throwable ignored) { }
+        ctx.drawText(mc.textRenderer, s, x, y, color, true);
     }
 
     /** Заголовок — PT Serif Italic. */
     public static void serif(DrawContext ctx, String s, int x, int y, int color) {
-        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(SERIF), x, y, color, false);
+        try {
+            if (LoopFont.draw(ctx, s, x, y, color, true)) return;
+        } catch (Throwable ignored) { }
+        ctx.drawText(mc.textRenderer, s, x, y, color, true);
     }
 
     public static int width(String s) {
-        return mc.textRenderer.getWidth(Text.literal(s).setStyle(SERIF));
+        try { return LoopFont.width(s, true); } catch (Throwable t) { return mc.textRenderer.getWidth(s); }
     }
 
     public static int serifWidth(String s) {
-        return mc.textRenderer.getWidth(Text.literal(s).setStyle(SERIF));
+        try { return LoopFont.width(s, true); } catch (Throwable t) { return mc.textRenderer.getWidth(s); }
     }
 
     public static String trim(String s, int maxWidth) {
