@@ -1,6 +1,7 @@
 package dev.loopclient.module;
 
 import dev.loopclient.modules.HudModules;
+import dev.loopclient.modules.ExtraModules;
 import dev.loopclient.modules.MiscModules;
 import dev.loopclient.modules.MoreModules;
 import dev.loopclient.modules.PlayerModules;
@@ -36,10 +37,12 @@ public final class Modules {
         add(new MoreModules.Cps());
         add(new MoreModules.HealthBar());
         add(new MoreModules.TargetHud());
+        add(new ExtraModules.NearbyPlayers());
 
         // визуал
         add(new RenderModules.Esp());
         add(new RenderModules.Hitboxes());
+        add(new ExtraModules.ItemEsp());
 
         // игрок
         add(new PlayerModules.Fullbright());

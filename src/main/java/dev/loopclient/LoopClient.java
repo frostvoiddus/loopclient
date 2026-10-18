@@ -51,7 +51,9 @@ public class LoopClient implements ClientModInitializer {
                 dev.loopclient.util.Sfx.open();
             }
             if (gateDelay > 0) gateDelay--;
-            if (gateDelay == 0 && keyGatePending && client.currentScreen == null && client.player != null) {
+            if (gateDelay == 0 && client.currentScreen == null && client.player != null
+                && (keyGatePending || !KeyCheck.verify(Config.getKey()).ok)
+                && !(client.currentScreen instanceof KeyScreen)) {
                 keyGatePending = false;
                 if (KeyCheck.verify(Config.getKey()).ok == false) {
                     client.setScreen(new KeyScreen(false));
