@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12'
+
+      - name: build
+        run: |
+          set +e
+          gradle build --no-daemon --console=plain --stacktrace > build.log 2>&1
+          code=$?
+          echo "exit code: $code"
+          if [ $code -ne 0 ]; then
+            grep -nE "error:|What went wrong|Could not|Caused by|FAILURE|Execution failed|No such|not found" build.log \
+              | head -n 28 \
+              | while IFS= read -r line; do
+                  echo "::error title=gradle::$line"
+                done
+          fi
+          echo "===== build.log tail ====="
+          tail -n 80 build.log
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: loopclient-jar
+          path: build/libs/*.jar
+          if-no-files-found: warn

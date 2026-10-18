@@ -1,0 +1,12 @@
+{
+  "providers": [
+    {
+      "type": "ttf",
+      "file": "loopclient:InstrumentSerif-Italic.ttf",
+      "size": 13.0,
+      "oversample": 2.0,
+      "shift": [0, 2],
+      "skip": ""
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "loopclient",
+  "version": "${version}",
+  "name": "loopclient",
+  "description": "Визуальный клиент loopclient: HUD, ESP, хитбоксы, яркость, зум и ClickGUI.",
+  "authors": ["loopclient"],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/loopclient/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.loopclient.LoopClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.4",
+    "java": ">=21"
+  }
+}
