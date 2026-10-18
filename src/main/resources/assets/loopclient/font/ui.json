@@ -1,1 +1,23 @@
-{"providers":[{"type":"ttf","file":"loopclient:ptsans-regular","size":9.0,"oversample":2.0,"shift":[0,1],"skip":""}]}
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "loopclient:font/ui.png",
+      "ascent": 9,
+      "height": 11,
+      "chars": [
+        " !\"#$%&'()*+,-./",
+        "0123456789:;<=>?",
+        "@ABCDEFGHIJKLMNO",
+        "PQRSTUVWXYZ[\\]^_",
+        "`abcdefghijklmno",
+        "pqrstuvwxyz{|}~А",
+        "БВГДЕЖЗИЙКЛМНОПР",
+        "СТУФХЦЧШЩЪЫЬЭЮЯа",
+        "бвгдежзийклмнопр",
+        "стуфхцчшщъыьэюяЁ",
+        "ё—«»…°№         "
+      ]
+    }
+  ]
+}

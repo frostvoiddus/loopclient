@@ -54,7 +54,7 @@ public final class Ui {
 
     /** Обычный текст — шрифт PT Sans. */
     public static void text(DrawContext ctx, String s, int x, int y, int color) {
-        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(UI), x, y, color, false);
+        ctx.drawText(mc.textRenderer, Text.literal(s).setStyle(SERIF), x, y, color, false);
     }
 
     /** Заголовок — PT Serif Italic. */
@@ -63,7 +63,7 @@ public final class Ui {
     }
 
     public static int width(String s) {
-        return mc.textRenderer.getWidth(Text.literal(s).setStyle(UI));
+        return mc.textRenderer.getWidth(Text.literal(s).setStyle(SERIF));
     }
 
     public static int serifWidth(String s) {
