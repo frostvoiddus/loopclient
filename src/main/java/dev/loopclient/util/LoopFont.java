@@ -1,21 +1,16 @@
 package dev.loopclient.util;
 
-import com.mojang.blaze3d.platform.NativeImage;
-import java.io.InputStream;
+import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.resource.Resource;
 import net.minecraft.util.Identifier;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 /**
- * Свой рендер шрифта: глифы берутся из PNG-атласа (16 колонок, ячейка 12x14).
- * Такой способ не зависит от парсера шрифтов Minecraft и работает всегда,
- * с кириллицей и латиницей. Ширина каждого глифа считается по прозрачности.
+ * Свой рендер шрифта из PNG-атласа (16 колонок, ячейка 12x14).
+ * Текстуру грузит сам Minecraft по идентификатору — без NativeImage и регистрации.
+ * Если что-то не так, draw() вернёт false, и Ui откатится на ванильный текст.
  */
 public final class LoopFont {
     private static final MinecraftClient mc = MinecraftClient.getInstance();
@@ -23,143 +18,98 @@ public final class LoopFont {
     public static final int COLS = 16;
     public static final int CELL_W = 12;
     public static final int CELL_H = 14;
+    public static final int ATLAS_W = 192;
+    public static final int ATLAS_H = 154;
 
     public static final Identifier UI_TEX = Identifier.of("loopclient", "font/ui");
     public static final Identifier SERIF_TEX = Identifier.of("loopclient", "font/serif");
 
     private static final Map<Character, Integer> INDEX = new HashMap<>();
-    private static final String CHARSET = buildCharset();
+    private static final int[] UI_ADVANCE;
+    private static final int[] SERIF_ADVANCE;
 
-    private static boolean loaded;
-    private static boolean failed;
-    private static final Map<Identifier, int[]> ADVANCE = new HashMap<>();
-    private static int atlasW = 192;
-    private static int atlasH = 154;
-
-    private LoopFont() {}
-
-    /** Тот же порядок, что при генерации атласа. */
-    private static String buildCharset() {
+    static {
         StringBuilder sb = new StringBuilder();
         for (int c = 32; c < 127; c++) sb.append((char) c);
         for (int c = 0x0410; c <= 0x044F; c++) sb.append((char) c);
         sb.append("Ёё—«»…°№");
-        StringBuilder out = new StringBuilder();
         for (int i = 0; i < sb.length(); i++) {
             char ch = sb.charAt(i);
-            if (INDEX.containsKey(ch)) continue;
-            INDEX.put(ch, out.length());
-            out.append(ch);
+            if (!INDEX.containsKey(ch)) INDEX.put(ch, INDEX.size());
         }
-        return out.toString();
-    }
-
-    public static boolean ready() {
-        if (failed) return false;
-        if (!loaded) load();
-        return loaded;
-    }
-
-    private static void load() {
-        try {
-            ADVANCE.put(UI_TEX, loadTexture(UI_TEX));
-            ADVANCE.put(SERIF_TEX, loadTexture(SERIF_TEX));
-            loaded = ADVANCE.get(UI_TEX) != null && ADVANCE.get(SERIF_TEX) != null;
-            if (!loaded) failed = true;
-        } catch (Throwable t) {
-            failed = true;
-            loaded = false;
+        UI_ADVANCE = new int[INDEX.size()];
+        SERIF_ADVANCE = new int[INDEX.size()];
+        for (Map.Entry<Character, Integer> e : INDEX.entrySet()) {
+            char ch = e.getKey();
+            int idx = e.getValue();
+            int w = (ch == ' ') ? 4 : measure(ch);
+            UI_ADVANCE[idx] = Math.max(2, w);
+            SERIF_ADVANCE[idx] = Math.max(2, w + 1);
         }
     }
 
-    private static int[] loadTexture(Identifier id) {
-        try {
-            Optional<Resource> res = mc.getResourceManager().getResource(id);
-            if (res.isEmpty()) return null;
-            NativeImage image;
-            try (InputStream in = res.get().getInputStream()) {
-                image = NativeImage.read(in);
-            }
-            mc.getTextureManager().registerTexture(id, new NativeImageBackedTexture(image));
+    private LoopFont() {}
 
-            atlasW = image.getWidth();
-            atlasH = image.getHeight();
-            int rows = atlasH / CELL_H;
-            int[] advance = new int[CHARSET.length()];
-            for (int i = 0; i < CHARSET.length(); i++) {
-                int cx = (i % COLS) * CELL_W;
-                int cy = (i / COLS) * CELL_H;
-                int right = 0;
-                for (int x = 0; x < CELL_W; x++) {
-                    for (int y = 0; y < CELL_H; y++) {
-                        int px = cx + x;
-                        int py = cy + y;
-                        if (px >= atlasW || py >= atlasH) continue;
-                        int color = image.getColor(px, py);
-                        if (((color >>> 24) & 0xFF) > 8) {
-                            right = Math.max(right, x + 1);
-                            break;
-                        }
-                    }
-                }
-                advance[i] = Math.max(1, right + 1);
-            }
-            if (rows <= 0) return null;
-            return advance;
-        } catch (Throwable t) {
-            return null;
-        }
+    /** Приблизительная ширина глифа в атласе (UI-шрифт, 11 px). */
+    private static int measure(char ch) {
+        if ("iIl.,:;'!|".indexOf(ch) >= 0) return 3;
+        if ("fjrt()[]-«»".indexOf(ch) >= 0) return 5;
+        if (Character.isUpperCase(ch)) return 9;
+        return 7;
     }
 
-    /** Нарисовать строку. Возвращает false, если атлас недоступен. */
+    /** Нарисовать строку. false — рисовать атласом нельзя, нужен фоллбек. */
     public static boolean draw(DrawContext ctx, String text, int x, int y, int color, boolean serif) {
-        if (!ready()) return false;
-        Identifier tex = serif ? SERIF_TEX : UI_TEX;
-        int[] advance = ADVANCE.get(tex);
-        if (advance == null) return false;
+        if (text == null || text.isEmpty()) return true;
+        try {
+            Identifier tex = serif ? SERIF_TEX : UI_TEX;
+            int[] advance = serif ? SERIF_ADVANCE : UI_ADVANCE;
 
-        float r = ((color >> 16) & 0xFF) / 255f;
-        float g = ((color >> 8) & 0xFF) / 255f;
-        float b = (color & 0xFF) / 255f;
-        float a = ((color >>> 24) & 0xFF) / 255f;
-        RenderSystem.setShaderColor(r, g, b, a);
-        int drawX = x;
-        for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (ch == ' ') {
-                drawX += 4;
-                continue;
+            float r = ((color >> 16) & 0xFF) / 255f;
+            float g = ((color >> 8) & 0xFF) / 255f;
+            float b = (color & 0xFF) / 255f;
+            float a = ((color >>> 24) & 0xFF) / 255f;
+            RenderSystem.setShaderColor(r, g, b, a);
+
+            int drawX = x;
+            for (int i = 0; i < text.length(); i++) {
+                char ch = text.charAt(i);
+                Integer idx = INDEX.get(ch);
+                if (idx == null) {
+                    drawX += 5;
+                    continue;
+                }
+                int u = (idx % COLS) * CELL_W;
+                int v = (idx / COLS) * CELL_H;
+                ctx.drawTexture(tex, drawX, y, 0, (float) u, (float) v,
+                    CELL_W, CELL_H, ATLAS_W, ATLAS_H);
+                drawX += advance[idx];
             }
-            Integer idx = INDEX.get(ch);
-            if (idx == null) {
-                drawX += 5;
-                continue;
+            RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            return true;
+        } catch (Throwable t) {
+            try {
+                RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            } catch (Throwable ignored) {
+                // ничего
             }
-            int u = (idx % COLS) * CELL_W;
-            int v = (idx / COLS) * CELL_H;
-            // тонируем через цвет шрифта: drawTexture не умеет цвет,
-            // поэтому рисуем слой и поверх — заливку не делаем (текст белый в атласе)
-            ctx.drawTexture(tex, drawX, y, 0, u, v, CELL_W, CELL_H, atlasW, atlasH);
-            drawX += advance[idx];
+            return false;
         }
-        return true;
     }
 
-    /** Ширина строки в пикселях (по метрикам атласа). */
+    /** Ширина строки по метрикам атласа. */
     public static int width(String text, boolean serif) {
-        if (!ready()) return mc.textRenderer.getWidth(text);
-        int[] advance = ADVANCE.get(serif ? SERIF_TEX : UI_TEX);
-        if (advance == null) return mc.textRenderer.getWidth(text);
+        if (text == null || text.isEmpty()) return 0;
+        int[] advance = serif ? SERIF_ADVANCE : UI_ADVANCE;
         int w = 0;
         for (int i = 0; i < text.length(); i++) {
-            char ch = text.charAt(i);
-            if (ch == ' ') {
-                w += 4;
-                continue;
-            }
-            Integer idx = INDEX.get(ch);
+            Integer idx = INDEX.get(text.charAt(i));
             w += idx == null ? 5 : advance[idx];
         }
         return w;
+    }
+
+    public static boolean has(char ch) {
+        return INDEX.containsKey(ch);
     }
 }
