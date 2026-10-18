@@ -6,6 +6,7 @@ import dev.loopclient.modules.MiscModules;
 import dev.loopclient.modules.MoreModules;
 import dev.loopclient.modules.PlayerModules;
 import dev.loopclient.modules.RenderModules;
+import dev.loopclient.modules.VisualModules;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -43,6 +44,10 @@ public final class Modules {
         add(new RenderModules.Esp());
         add(new RenderModules.Hitboxes());
         add(new ExtraModules.ItemEsp());
+        add(new VisualModules.ChinaHat());
+        add(new VisualModules.BlockHighlight());
+        add(new VisualModules.Tracers());
+        add(new VisualModules.JumpCircles());
 
         // игрок
         add(new PlayerModules.Fullbright());

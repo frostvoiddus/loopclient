@@ -1,25 +1,34 @@
 package dev.loopclient.util;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Проверка ключа доступа: формат + HMAC-SHA256, как в лаунчере.
- * Секрет должен совпадать с тем, которым генерируются ключи.
- * В продакшене проверку надо делать на сервере — клиентский секрет извлекается из jar.
+ * Проверка ключа доступа.
+ *
+ * Формат: LOOP-<код тарифа>-<4>-<4>-<подпись>
+ * Подпись: HMAC-SHA256(secret, "<код>-<блок>-<блок>"), первые 6 hex в верхнем регистре
+ * (ровно как в loopclient-keygen / keys.js — БЕЗ префикса LOOP).
+ *
+ * Секрет берётся так: файл %APPDATA%\loopclient\data\secret (его пишет лаунчер),
+ * иначе демо-значение. В продакшене проверку надо делать на сервере.
  */
 public final class KeyCheck {
 
-    /** Демо-секрет из лаунчера (secret.js). Поменяйте на свой вместе с генератором. */
-    public static final String SECRET = "loopclient-demo-secret-change-me";
+    /** Демо-секрет (secret.js: DEMO). */
+    public static final String DEMO_SECRET = "loopclient-demo-secret-change-me";
 
-    /** code -> срок в днях; 18 = 180 дней, FF = навсегда. */
     private static final String[][] PLANS = {
         {"07", "7 дней"}, {"14", "14 дней"}, {"30", "30 дней"},
         {"90", "90 дней"}, {"18", "180 дней"}, {"FF", "навсегда"},
     };
+
+    private static String secret;
 
     private KeyCheck() {}
 
@@ -39,6 +48,28 @@ public final class KeyCheck {
         return new Result(false, error, null);
     }
 
+    /** Секрет из файла лаунчера, иначе демо. */
+    public static String secret() {
+        if (secret != null) return secret;
+        try {
+            String appData = System.getenv("APPDATA");
+            if (appData != null && !appData.isEmpty()) {
+                Path file = Paths.get(appData, "loopclient", "data", "secret");
+                if (Files.exists(file)) {
+                    String value = new String(Files.readAllBytes(file), StandardCharsets.UTF_8).trim();
+                    if (!value.isEmpty()) {
+                        secret = value;
+                        return secret;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            // нет доступа к файлу — работаем с демо
+        }
+        secret = DEMO_SECRET;
+        return secret;
+    }
+
     public static Result verify(String input) {
         String raw = String.valueOf(input == null ? "" : input).trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
         if (raw.isEmpty()) return fail("Введите ключ");
@@ -55,22 +86,27 @@ public final class KeyCheck {
         if (!parts[2].matches("[A-Z0-9]{4}") || !parts[3].matches("[A-Z0-9]{4}")) {
             return fail("Формат: LOOP-30-XXXX-XXXX-XXXXXX");
         }
-        String expected = sign(parts[0], parts[1], parts[2], parts[3]);
+        String expected = sign(code, parts[2], parts[3]);
         if (!expected.equalsIgnoreCase(parts[4])) return fail("Ключ неверный или подделан");
         return new Result(true, null, plan);
     }
 
-    /** HMAC-SHA256(secret, "LOOP-code-p1-p2"), первые 6 hex, как в keys.js. */
-    public static String sign(String... parts) {
+    /** HMAC-SHA256(secret, "code-a-b"), первые 6 hex. */
+    public static String sign(String code, String a, String b) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            byte[] hash = mac.doFinal(String.join("-", parts).getBytes(StandardCharsets.UTF_8));
+            mac.init(new SecretKeySpec(secret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            String payload = code + "-" + a + "-" + b;
+            byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
-            for (byte b : hash) hex.append(String.format("%02x", b));
+            for (byte value : hash) hex.append(String.format("%02x", value));
             return hex.substring(0, 6).toUpperCase(Locale.ROOT);
         } catch (Exception e) {
             return "";
         }
+    }
+
+    public static boolean hasValidKey() {
+        return verify(Config.getKey()).ok;
     }
 }
