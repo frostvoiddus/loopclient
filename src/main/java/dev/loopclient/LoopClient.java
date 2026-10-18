@@ -27,6 +27,7 @@ public class LoopClient implements ClientModInitializer {
     public static MinecraftClient mc;
     private static KeyBinding menuKey;
     private static boolean keyGatePending;
+    private static int gateDelay;
 
     @Override
     public void onInitializeClient() {
@@ -47,8 +48,10 @@ public class LoopClient implements ClientModInitializer {
             mc = client;
             if (menuKey != null && menuKey.wasPressed() && client.currentScreen == null) {
                 client.setScreen(new ClickGui());
+                dev.loopclient.util.Sfx.open();
             }
-            if (keyGatePending && client.currentScreen == null && client.player != null) {
+            if (gateDelay > 0) gateDelay--;
+            if (gateDelay == 0 && keyGatePending && client.currentScreen == null && client.player != null) {
                 keyGatePending = false;
                 if (KeyCheck.verify(Config.getKey()).ok == false) {
                     client.setScreen(new KeyScreen(false));
