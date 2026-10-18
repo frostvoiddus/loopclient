@@ -1,6 +1,7 @@
 package dev.loopclient.module;
 
 import dev.loopclient.modules.HudModules;
+import dev.loopclient.modules.BrandModules;
 import dev.loopclient.modules.ExtraModules;
 import dev.loopclient.modules.MiscModules;
 import dev.loopclient.modules.MoreModules;
@@ -20,7 +21,7 @@ public final class Modules {
 
     public static void init() {
         // HUD — базовая пачка
-        add(new HudModules.Watermark());
+        add(new BrandModules.Watermark2());
         add(new HudModules.Coords());
         add(new HudModules.FpsPing());
         add(new HudModules.Armor());
@@ -48,6 +49,7 @@ public final class Modules {
         add(new VisualModules.BlockHighlight());
         add(new VisualModules.Tracers());
         add(new VisualModules.JumpCircles());
+        add(new BrandModules.TargetEsp());
 
         // игрок
         add(new PlayerModules.Fullbright());
